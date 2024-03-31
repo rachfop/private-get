@@ -50,22 +50,20 @@ def train_model(
 ):
     train_dataset = pd.read_json("content/train.jsonl", lines=True, orient='records')
     train_dataset_mapped = train_dataset.apply(
-        lambda x: {
+        lambda x: pd.Series({
             "text": f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n" + x["prompt"] + " [/INST] " + x["response"]
-        },
-        axis=1,
-        result_type='expand'
+        }),
+        axis=1
     )
 
     valid_dataset_mapped = None
     if os.path.getsize("content/test.jsonl") > 0:
         valid_dataset = pd.read_json("content/test.jsonl", lines=True, orient='records')
         valid_dataset_mapped = valid_dataset.apply(
-            lambda x: {
+            lambda x: pd.Series({
                 "text": f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n" + x["prompt"] + " [/INST] " + x["response"]
-            },
-            axis=1,
-            result_type='expand'
+            }),
+            axis=1
         )
 
     compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
