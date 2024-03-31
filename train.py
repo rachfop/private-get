@@ -1,4 +1,5 @@
 import os
+from datasets import Dataset
 
 import pandas as pd
 import torch
@@ -48,23 +49,39 @@ def train_model(
     device_map,
     system_message,
 ):
-    train_dataset = pd.read_json("content/train.jsonl", lines=True, orient='records')
+    train_dataset = pd.read_json("content/train.jsonl", lines=True, orient="records")
     train_dataset_mapped = train_dataset.apply(
-        lambda x: pd.Series({
-            "text": f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n" + x["prompt"] + " [/INST] " + x["response"]
-        }),
-        axis=1
+        lambda x: pd.Series(
+            {
+                "text": f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n"
+                + x["prompt"]
+                + " [/INST] "
+                + x["response"]
+            }
+        ),
+        axis=1,
     )
+    train_dataset_mapped = Dataset.from_pandas(
+        train_dataset_mapped
+    )  # Convert DataFrame to Dataset
 
     valid_dataset_mapped = None
     if os.path.getsize("content/test.jsonl") > 0:
-        valid_dataset = pd.read_json("content/test.jsonl", lines=True, orient='records')
+        valid_dataset = pd.read_json("content/test.jsonl", lines=True, orient="records")
         valid_dataset_mapped = valid_dataset.apply(
-            lambda x: pd.Series({
-                "text": f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n" + x["prompt"] + " [/INST] " + x["response"]
-            }),
-            axis=1
+            lambda x: pd.Series(
+                {
+                    "text": f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n"
+                    + x["prompt"]
+                    + " [/INST] "
+                    + x["response"]
+                }
+            ),
+            axis=1,
         )
+        valid_dataset_mapped = Dataset.from_pandas(
+            valid_dataset_mapped
+        )  # Convert DataFrame to Dataset
 
     compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
     bnb_config = BitsAndBytesConfig(
