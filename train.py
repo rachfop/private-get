@@ -1,9 +1,14 @@
 import pandas as pd
 import torch
 from peft import LoraConfig
-from transformers import (AutoModelForCausalLM, AutoTokenizer,
-                          BitsAndBytesConfig, TrainingArguments, logging,
-                          pipeline)
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+    TrainingArguments,
+    logging,
+    pipeline,
+)
 from trl import SFTTrainer
 
 
@@ -47,7 +52,7 @@ def train_model(
         {
             "text": train_dataset.apply(
                 lambda x: f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n"
-                + x["prompt"]
+                + x["question"]  # Update the field name here
                 + " [/INST] "
                 + x["response"]
             )
@@ -57,7 +62,7 @@ def train_model(
         {
             "text": valid_dataset.apply(
                 lambda x: f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n"
-                + x["prompt"]
+                + x["question"]  # Update the field name here
                 + " [/INST] "
                 + x["response"]
             )
