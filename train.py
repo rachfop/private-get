@@ -1,30 +1,70 @@
-import os
-import torch
-from datasets import load_dataset
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
-    HfArgumentParser,
-    TrainingArguments,
-    pipeline,
-    logging,
-)
-from peft import LoraConfig, PeftModel
-from trl import SFTTrainer
 import pandas as pd
-def train_model(model_name, dataset_name, new_model, lora_r, lora_alpha, lora_dropout, use_4bit,
-                bnb_4bit_compute_dtype, bnb_4bit_quant_type, use_nested_quant, output_dir,
-                num_train_epochs, fp16, bf16, per_device_train_batch_size, per_device_eval_batch_size,
-                gradient_accumulation_steps, gradient_checkpointing, max_grad_norm, learning_rate,
-                weight_decay, optim, lr_scheduler_type, max_steps, warmup_ratio, group_by_length,
-                save_steps, logging_steps, max_seq_length, packing, device_map, system_message):
+import torch
+from peft import LoraConfig
+from transformers import (AutoModelForCausalLM, AutoTokenizer,
+                          BitsAndBytesConfig, TrainingArguments, logging,
+                          pipeline)
+from trl import SFTTrainer
 
-    train_dataset = pd.read_json('content/train.jsonl', lines=True)
-    valid_dataset = pd.read_json('content/test.jsonl', lines=True)
 
-    train_dataset_mapped = train_dataset.apply(lambda x: {'text': f'[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n' + x['prompt'] + ' [/INST] ' + x['response']}, axis=1)
-    valid_dataset_mapped = valid_dataset.apply(lambda x: {'text': f'[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n' + x['prompt'] + ' [/INST] ' + x['response']}, axis=1)
+def train_model(
+    model_name,
+    dataset_name,
+    new_model,
+    lora_r,
+    lora_alpha,
+    lora_dropout,
+    use_4bit,
+    bnb_4bit_compute_dtype,
+    bnb_4bit_quant_type,
+    use_nested_quant,
+    output_dir,
+    num_train_epochs,
+    fp16,
+    bf16,
+    per_device_train_batch_size,
+    per_device_eval_batch_size,
+    gradient_accumulation_steps,
+    gradient_checkpointing,
+    max_grad_norm,
+    learning_rate,
+    weight_decay,
+    optim,
+    lr_scheduler_type,
+    max_steps,
+    warmup_ratio,
+    group_by_length,
+    save_steps,
+    logging_steps,
+    max_seq_length,
+    packing,
+    device_map,
+    system_message,
+):
+    train_dataset = pd.read_json("content/train.jsonl", lines=True)
+    valid_dataset = pd.read_json("content/test.jsonl", lines=True)
+    train_dataset_mapped = pd.DataFrame(
+        {
+            "text": train_dataset.apply(
+                lambda x: f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n"
+                + x["prompt"]
+                + " [/INST] "
+                + x["response"]
+            )
+        }
+    )
+    valid_dataset_mapped = pd.DataFrame(
+        {
+            "text": valid_dataset.apply(
+                lambda x: f"[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n"
+                + x["prompt"]
+                + " [/INST] "
+                + x["response"]
+            )
+        }
+    )
+    # train_dataset_mapped = train_dataset.apply(lambda x: {'text': f'[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n' + x['prompt'] + ' [/INST] ' + x['response']}, axis=1)
+    # valid_dataset_mapped = valid_dataset.apply(lambda x: {'text': f'[INST] <<SYS>>\n{system_message.strip()}\n<</SYS>>\n\n' + x['prompt'] + ' [/INST] ' + x['response']}, axis=1)
     compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=use_4bit,
@@ -33,9 +73,7 @@ def train_model(model_name, dataset_name, new_model, lora_r, lora_alpha, lora_dr
         bnb_4bit_use_double_quant=use_nested_quant,
     )
     model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        quantization_config=bnb_config,
-        # device_map=device_map
+        model_name, quantization_config=bnb_config, device_map=device_map
     )
     model.config.use_cache = False
     model.config.pretraining_tp = 1
@@ -69,7 +107,7 @@ def train_model(model_name, dataset_name, new_model, lora_r, lora_alpha, lora_dr
         lr_scheduler_type=lr_scheduler_type,
         report_to="all",
         evaluation_strategy="steps",
-        eval_steps=5
+        eval_steps=5,
     )
 
     trainer = SFTTrainer(
@@ -89,6 +127,8 @@ def train_model(model_name, dataset_name, new_model, lora_r, lora_alpha, lora_dr
 
     logging.set_verbosity(logging.CRITICAL)
     prompt = f"[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\nWrite a function that reverses a string. [/INST]"
-    pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200)
+    pipe = pipeline(
+        task="text-generation", model=model, tokenizer=tokenizer, max_length=200
+    )
     result = pipe(prompt)
-    print(result[0]['generated_text'])
+    print(result[0]["generated_text"])
